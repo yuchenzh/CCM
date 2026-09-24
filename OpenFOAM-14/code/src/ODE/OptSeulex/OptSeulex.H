@@ -35,30 +35,55 @@ Description
         Stiff and Differential-Algebraic Problems, second edition",
         Springer-Verlag, Berlin.
     \endverbatim
-    
+
+      Header file for Seulex algorithm, note that this implementation is not
+      consistent with OpenFOAM-10 version. But same with Imren's version
+
+      Reference
+
+      [1] A. Imren, D. C. Haworth. On the merits of extrapolation-based stiff
+      ODE solvers for combustion CFD. Combustion and Flame 174 (2016) 1–15.
+
 SourceFiles
     OptSeulex.C
 
+Author
+    Zixin Chi <chizixin@buaa.edu.cn>
+
 \*---------------------------------------------------------------------------*/
 
-#ifndef OptSeulex_H
-#define OptSeulex_H
+//=============================================================================//
 
+//---------------------------------
+// 1. Standard C++ library headers
+//---------------------------------
 #include <iostream>
 #include <vector>
 #include <algorithm>
 
+//---------------------------------
+// 2. OpenFOAM library headers
+//---------------------------------
 #include "fastChemistrySolver.H"
-#include "simpleMatrix.H"
+//#include "simpleMatrix.H"
 
-
+//---------------------------------
+// 3. FastChemistry headers
+//---------------------------------
 #include "LUsolver.H"
+#include "scalarMatrices.H"
+#include "volFields.H"
+#include "simpleMatrix.H"
+//=============================================================================//
+
+#ifndef OptSeulex_H
+#define OptSeulex_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
+using namespace FastChemistry;
 /*---------------------------------------------------------------------------*\
                         Class OptSeulex Declaration
 \*---------------------------------------------------------------------------*/
@@ -70,19 +95,21 @@ class OptSeulex
 {
     // Private Data
 
+        //- State of the adaptive stepping: direction flag, tried and
+        //  accepted step sizes, and accept/reject history flags
     class stepState
     {
         public:
 
         const bool forward;
-        scalar dxTry;
-        scalar dxDid;
+        double dxTry;
+        double dxDid;
         bool first;
         bool last;
         bool reject;
         bool prevReject;
 
-        stepState(const scalar dx)
+        stepState(const double dx)
         :
             forward(dx > 0 ? true : false),
             dxTry(dx),
@@ -94,23 +121,21 @@ class OptSeulex
         {}
     };
 
-
         //- Coefficients dictionary
         dictionary coeffsDict_;
 
     // ODE solver
 
         //- Absolute convergence tolerance per step
-        const scalar absTol_=1e-8;
+        const double absTol_=1e-8;
 
         //- Relative convergence tolerance per step
-        const scalar relTol_=1e-4;
+        const double relTol_=1e-4;
 
-        scalar logTol;
+        double logTol;
 
         //- The maximum number of sub-steps allowed for the integration step
         const label maxSteps_;
-
 
     // Seulex
 
@@ -138,7 +163,7 @@ class OptSeulex
         // held to avoid dynamic memory allocation between calls
         // and to transfer internal values between functions
 
-            mutable scalar theta_;
+            mutable double theta_;
             mutable label kTarg_;
             mutable scalarRectangularMatrix table_;
 
@@ -146,10 +171,9 @@ class OptSeulex
 
             // Fields space for "solve" function
 
-
             mutable scalarField dxOpt_, temp_;
             //mutable scalarField y0_, ySequence_, scale_;
-            
+
             mutable double* y0_;
             mutable double* ySequence_;
             mutable double* scale_;
@@ -157,26 +181,20 @@ class OptSeulex
             // Fields used in "seul" function
             //mutable scalarField dy_, yTemp_, dydx_;
 
-        mutable LUsolver LU;
-
-
-
+        mutable FastChemistry::LUsolver LU;
 
 public:
 
     //- Runtime type information
     TypeName("OptSeulex");
 
-
     // Constructors
 
-        //- Construct from mesh
+        //- Construct from thermo
         OptSeulex(const fvMesh& mesh);
-
 
     //- Destructor
     virtual ~OptSeulex();
-
 
     // Member Functions
 
@@ -190,7 +208,6 @@ public:
             scalar& __restrict__ deltaT,
             scalar& __restrict__ subDeltaT
         ) const;
-
 
         virtual void solve
         (
@@ -217,7 +234,7 @@ public:
             double* __restrict__ k11,
             double* __restrict__ Jy,
             double* __restrict__ a
-        )const;
+        ) const;
 
         void SeulexSolve
         (
@@ -232,10 +249,10 @@ public:
             double* __restrict__ dy_,
             double* __restrict__ dydx_,
             double* __restrict__ k9,
-            double* __restrict__ k11,            
+            double* __restrict__ k11,
             double* __restrict__ Jy,
-            double* __restrict__ a            
-        )const;
+            double* __restrict__ a
+        ) const;
 
     // Private Member Functions
 
@@ -254,9 +271,9 @@ public:
             double* __restrict__ Ha,
             double* __restrict__ dy_,
             double* __restrict__ dydx_,
-            double* __restrict__ k11,             
+            double* __restrict__ k11,
             double* __restrict__ Jy,
-            double* __restrict__ a                
+            double* __restrict__ a
         ) const;
 
         //- Polynomial extrapolation
@@ -268,8 +285,7 @@ public:
         ) const;
 
 };
-
-
+ 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
@@ -285,3 +301,4 @@ public:
 #endif
 
 // ************************************************************************* //
+
